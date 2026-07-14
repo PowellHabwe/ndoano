@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Powell.exe — Setup Wizard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --win-teal: #018281;
+    --win-teal-dark: #016665;
+    --chrome: #c3c7cb;
+    --chrome-light: #eef0f2;
+    --chrome-dark: #7b8087;
+    --navy-a: #000082;
+    --navy-b: #1084d0;
+    --yellow: #ffe14d;
+    --pink: #ff6fa5;
+    --ink: #1a1a1a;
+    --white: #ffffff;
+    --taskbar-h: 42px;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    font-family: 'VT323', 'Trebuchet MS', monospace;
+    font-size: 20px;
+    background: var(--win-teal);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.06) 0, transparent 45%),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.05) 0, transparent 40%);
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* ===== BOOT SCREEN ===== */
+  #boot-screen{
+    position: fixed; inset: 0;
+    background: #000;
+    color: #33ff66;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    line-height: 1.5;
+    padding: 28px 20px;
+    z-index: 3000;
+    display:flex;
+    flex-direction: column;
+  }
+  #boot-text{ white-space: pre-wrap; margin:0; flex:1; }
+  #boot-cursor{
+    display:inline-block;
+    width: 10px; height: 16px;
+    background: #33ff66;
+    animation: blink 1s step-start infinite;
+    margin-left: 2px;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+  #boot-screen.hide{
+    animation: boot-fade .5s ease forwards;
+  }
+  @keyframes boot-fade{
+    to{ opacity:0; visibility:hidden; }
+  }
+  @media (max-width: 640px){
+    #boot-screen{ font-size: 15px; padding: 18px 14px; }
+  }
+
+  /* ===== CRT OVERLAY ===== */
+  #crt-overlay{
+    position: fixed; inset:0;
+    pointer-events:none;
+    z-index: 900;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.05) 3px,
+      rgba(0,0,0,0) 4px
+    );
+    mix-blend-mode: multiply;
+  }
+  #crt-overlay::after{
+    content:'';
+    position:absolute; inset:0;
+    box-shadow: inset 0 0 140px rgba(0,0,0,0.35);
+  }
+
+  .desktop{
+    min-height: 100vh;
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    justify-content:center;
+    padding: 20px 14px calc(var(--taskbar-h) + 20px);
+  }
+
+  /* faint desktop icons for flavor (desktop / wide screens) */
+  .desk-icon{
+    position: fixed;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+    color: rgba(255,255,255,0.9);
+    font-family: 'VT323', monospace;
+    font-size: 14px;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+    user-select:none;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 6px;
+    border-radius: 4px;
+  }
+  .desk-icon:hover, .desk-icon:focus-visible{ background: rgba(255,255,255,0.12); outline: none; }
+  .desk-icon .glyph{ font-size: 28px; filter: drop-shadow(1px 1px 0 rgba(0,0,0,0.3)); }
+  .di1{ top: 28px; left: 28px; }
+  .di2{ top: 130px; left: 28px; }
+  .di3{ bottom: calc(var(--taskbar-h) + 30px); right: 34px; }
+  .di4{ top: 28px; right: 28px; }
+
+  /* mobile icon strip */
+  .mobile-icon-row{
+    display:none;
+    width:100%;
+    max-width: 640px;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 2px 4px 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-icon-row button{
+    flex: 0 0 auto;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    background: rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    color: #fff;
+    font-family:'VT323', monospace;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  .mobile-icon-row .glyph{ font-size: 22px; }
+
+  @media (max-width: 640px){
+    .desk-icon{ display:none; }
+    .mobile-icon-row{ display:flex; }
+  }
+
+  .window{
+    width: 100%;
+    max-width: 640px;
+    background: var(--chrome);
+    border: 2px solid var(--white);
+    border-right-color: #4b4f54;
+    border-bottom-color: #4b4f54;
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.35);
+    animation: pop-in .35s ease-out;
+    transition: transform .25s ease, opacity .25s ease;
+  }
+  .window.dragging{ transition: none; }
+  @keyframes pop-in{
+    from{ transform: scale(.9); opacity:0; }
+    to{ transform: scale(1); opacity:1; }
+  }
+  .window.minimized{
+    transform: scale(0.02) translateY(400px);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .window.maxi-pulse{
+    animation: maxi-pulse .35s ease;
+  }
+  @keyframes maxi-pulse{
+    50%{ transform: scale(1.015); }
+  }
+
+  .titlebar{
+    background: linear-gradient(90deg, var(--navy-a), var(--navy-b));
+    color: var(--white);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 6px 8px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    cursor: move;
+    touch-action: none;
+    user-select: none;
+  }
+  .titlebar-left{ display:flex; align-items:center; gap:8px; }
+  .titlebar-left .icon{ font-size:14px; }
+  .win-btns{ display:flex; gap:4px; }
+  .win-btns button{
+    width: 22px; height: 20px;
+    background: var(--chrome);
+    border: 1px solid var(--white);
+    border-right-color:#4b4f54; border-bottom-color:#4b4f54;
+    display:flex; align-items:center; justify-content:center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--ink);
+    cursor:pointer;
+    padding: 0;
+  }
+  .win-btns button:active{
+    border-color:#4b4f54 var(--white) var(--white) #4b4f54;
+  }
+
+  .body-area{
+    padding: 22px 24px 18px;
+    min-height: 380px;
+    display:flex;
+    flex-direction:column;
+  }
+  .step-title{
+    font-family: 'Press Start 2P', monospace;
+    font-size: 15px;
+    color: var(--navy-a);
+    margin: 0 0 14px;
+    line-height:1.6;
+  }
+  .step-sub{
+    font-size: 17px;
+    color:#333;
+    margin: -8px 0 16px;
+  }
+  .rule{
+    border: none;
+    border-top: 2px solid var(--white);
+    border-bottom: 1px solid var(--chrome-dark);
+    margin: 12px 0 18px;
+  }
+  .content{
+    flex: 1;
+    font-size: 20px;
+    line-height: 1.5;
+  }
+  .content p{ margin: 0 0 12px; }
+  ul.reqs{ list-style:none; padding:0; margin:0; }
+  ul.reqs li{
+    display:flex; align-items:center; gap:10px;
+    padding: 8px 10px;
+    background: var(--chrome-light);
+    border: 1px solid var(--chrome-dark);
+    margin-bottom: 8px;
+    opacity: 0;
+    animation: slide-in .4s ease forwards;
+  }
+  ul.reqs li:nth-child(1){ animation-delay: .1s; }
+  ul.reqs li:nth-child(2){ animation-delay: .35s; }
+  ul.reqs li:nth-child(3){ animation-delay: .6s; }
+  ul.reqs li:nth-child(4){ animation-delay: .85s; }
+  ul.reqs li:nth-child(5){ animation-delay: 1.1s; }
+  @keyframes slide-in{
+    from{ opacity:0; transform: translateX(-14px); }
+    to{ opacity:1; transform: translateX(0); }
+  }
+  ul.reqs .check{
+    color: var(--win-teal-dark);
+    font-weight:bold;
+    font-size: 22px;
+  }
+
+  .eula-box{
+    background: var(--white);
+    border: 2px inset var(--chrome-dark);
+    height: 170px;
+    overflow-y: auto;
+    padding: 10px 12px;
+    font-size: 17px;
+    line-height:1.5;
+  }
+  .eula-box p{ margin: 0 0 10px; }
+  .agree-row{
+    display:flex; align-items:center; gap:8px;
+    margin-top: 14px;
+    font-size: 18px;
+  }
+  .agree-row input{ width:18px; height:18px; }
+
+  select.fake-select{
+    width:100%;
+    font-family:'VT323', monospace;
+    font-size: 19px;
+    padding: 8px;
+    border: 2px inset var(--chrome-dark);
+    background: var(--white);
+  }
+
+  .scan-item{ margin-bottom: 16px; }
+  .scan-label{
+    display:flex; justify-content:space-between;
+    font-size: 18px;
+    margin-bottom: 5px;
+  }
+  .scan-label .scan-pct{ font-weight:bold; color: var(--win-teal-dark); }
+  .scan-bar-outer{
+    width:100%; height: 20px;
+    border: 2px inset var(--chrome-dark);
+    background: var(--white);
+    padding: 2px;
+  }
+  .scan-bar-inner{
+    height:100%; width:0%;
+    background: linear-gradient(90deg, var(--win-teal), var(--pink));
+    transition: width 1.1s ease-out;
+  }
+  .scan-verdict{
+    margin-top: 18px;
+    padding: 12px;
+    background: var(--chrome-light);
+    border: 1px solid var(--chrome-dark);
+    text-align:center;
+    font-size: 19px;
+    opacity: 0;
+    transition: opacity .6s ease;
+  }
+  .scan-verdict.show{ opacity: 1; }
+  .scan-verdict strong{ color: var(--navy-a); }
+
+  .progress-wrap{ margin-top: 10px; }
+  .progress-status{
+    font-size: 18px;
+    color:#333;
+    margin-bottom: 10px;
+    min-height: 24px;
+  }
+  .progress-bar-outer{
+    width:100%; height: 26px;
+    border: 2px inset var(--chrome-dark);
+    background: var(--white);
+    padding: 3px;
+  }
+  .progress-bar-inner{
+    height:100%; width:0%;
+    background: repeating-linear-gradient(45deg, var(--win-teal), var(--win-teal) 10px, var(--win-teal-dark) 10px, var(--win-teal-dark) 20px);
+    background-size: 200% 100%;
+    transition: width .4s linear;
+  }
+  .progress-pct{
+    text-align:right;
+    font-size: 16px;
+    margin-top: 4px;
+    color:#444;
+  }
+
+  .finish-wrap{
+    text-align:center;
+    padding-top: 10px;
+  }
+  .finish-icon{ font-size: 52px; }
+  .finish-title{
+    font-family:'Press Start 2P', monospace;
+    font-size: 16px;
+    color: var(--win-teal-dark);
+    margin: 10px 0 14px;
+  }
+  .finish-msg{ font-size:20px; margin-bottom: 6px; }
+  .finish-sign{
+    margin-top: 14px;
+    font-size: 18px;
+    color:#555;
+    font-style: italic;
+  }
+
+  .btn-row{
+    display:flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--chrome-dark);
+    background: var(--chrome);
+  }
+  .wbtn{
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    padding: 7px 20px;
+    background: var(--chrome);
+    border: 2px solid var(--white);
+    border-right-color:#4b4f54; border-bottom-color:#4b4f54;
+    cursor:pointer;
+    color: var(--ink);
+  }
+  .wbtn:active{
+    border-color:#4b4f54 var(--white) var(--white) #4b4f54;
+  }
+  .wbtn:disabled{
+    color: #888; cursor:not-allowed;
+  }
+  .wbtn.primary{ font-weight:bold; }
+  .wbtn.big{
+    font-size: 20px;
+    padding: 10px 26px;
+    background: var(--yellow);
+  }
+
+  .step{ display:none; }
+  .step.active{ display:flex; flex-direction:column; flex:1; }
+
+  /* confetti */
+  .confetti{
+    position: fixed;
+    top: -20px;
+    width: 10px; height: 14px;
+    opacity: 0.95;
+    animation: fall linear forwards;
+    z-index: 999;
+  }
+  @keyframes fall{
+    to{ transform: translateY(110vh) rotate(600deg); opacity: 0.9; }
+  }
+
+  footer.credit{
+    text-align:center;
+    color: rgba(255,255,255,0.75);
+    font-size: 14px;
+    margin-top: 6px;
+    font-family: 'VT323', monospace;
+  }
+
+  /* ===== MUSIC TOGGLE ===== */
+  #music-toggle{
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1500;
+    background: var(--chrome);
+    border: 2px solid var(--white);
+    border-right-color:#4b4f54; border-bottom-color:#4b4f54;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  #music-toggle:active{
+    border-color:#4b4f54 var(--white) var(--white) #4b4f54;
+  }
+
+  /* ===== TASKBAR ===== */
+  #taskbar{
+    position: fixed;
+    left:0; right:0; bottom:0;
+    height: var(--taskbar-h);
+    background: linear-gradient(180deg, var(--chrome-light), var(--chrome));
+    border-top: 2px solid var(--white);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 0 8px;
+    z-index: 1200;
+    font-family: 'VT323', monospace;
+  }
+  #start-btn{
+    display:flex; align-items:center; gap:6px;
+    background: var(--chrome);
+    border: 2px solid var(--white);
+    border-right-color:#4b4f54; border-bottom-color:#4b4f54;
+    padding: 4px 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--navy-a);
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #start-btn:active{ border-color:#4b4f54 var(--white) var(--white) #4b4f54; }
+  #taskbar-app{
+    flex:1;
+    margin: 0 10px;
+    background: var(--white);
+    border: 2px inset var(--chrome-dark);
+    padding: 4px 10px;
+    font-size: 15px;
+    color: var(--ink);
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #taskbar-clock{
+    border: 2px inset var(--chrome-dark);
+    background: var(--white);
+    padding: 4px 10px;
+    font-size: 15px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  @media (max-width: 480px){
+    #taskbar-app{ display:none; }
+  }
+
+  /* fake error modal */
+  #error-modal{
+    position: fixed; inset:0;
+    background: rgba(0,0,0,0.35);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index: 2000;
+    padding: 20px;
+  }
+  #error-modal.show{ display:flex; }
+  .error-box{
+    background: var(--chrome);
+    border: 2px solid var(--white);
+    border-right-color:#4b4f54; border-bottom-color:#4b4f54;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 6px 6px 0 rgba(0,0,0,0.35);
+  }
+  .error-titlebar{
+    background: linear-gradient(90deg, #820000, #d01010);
+    color: #fff;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+  .error-body{
+    padding: 18px;
+    display:flex;
+    gap: 12px;
+    align-items:flex-start;
+    font-size: 18px;
+  }
+  .error-body .glyph{ font-size: 30px; }
+  .error-actions{
+    display:flex; justify-content:flex-end;
+    padding: 0 18px 16px;
+  }
+</style>
+</head>
+<body>
+
+<div id="boot-screen">
+  <pre id="boot-text"></pre><span id="boot-cursor"></span>
+</div>
+
+<div id="crt-overlay"></div>
+
+<button id="music-toggle" aria-label="Toggle music">🔊 Music</button>
+
+<div class="desktop" id="desktop-area">
+
+  <div class="desk-icon di1" id="icon-computer" tabindex="0"><span class="glyph">🖥️</span>My Computer</div>
+  <div class="desk-icon di2" id="icon-bin" tabindex="0"><span class="glyph">🗑️</span>Recycle Bin</div>
+  <div class="desk-icon di3" id="icon-excuses" tabindex="0"><span class="glyph">📁</span>My Excuses</div>
+  <div class="desk-icon di4" id="icon-save" tabindex="0"><span class="glyph">💾</span>Save Yourself</div>
+
+  <div class="mobile-icon-row">
+    <button id="icon-computer-m"><span class="glyph">🖥️</span>My Computer</button>
+    <button id="icon-bin-m"><span class="glyph">🗑️</span>Recycle Bin</button>
+    <button id="icon-excuses-m"><span class="glyph">📁</span>My Excuses</button>
+    <button id="icon-save-m"><span class="glyph">💾</span>Save Yourself</button>
+  </div>
+
+  <div class="window" role="dialog" aria-label="Powell.exe Setup Wizard" id="the-window">
+    <div class="titlebar" id="titlebar">
+      <div class="titlebar-left">
+        <span class="icon">💾</span>
+        <span>POWELL.EXE — SETUP WIZARD</span>
+      </div>
+      <div class="win-btns">
+        <button id="min-btn" aria-label="Minimize">_</button>
+        <button id="max-btn" aria-label="Maximize">□</button>
+        <button id="close-btn" aria-label="Close">x</button>
+      </div>
+    </div>
+
+    <div class="body-area">
+
+      <!-- STEP 1: WELCOME -->
+      <div class="step active" data-step="1">
+        <h1 class="step-title">Welcome, Irene 👋</h1>
+        <div class="rule"></div>
+        <div class="content">
+          <p>This wizard will guide you through the installation of <strong>Powell.exe</strong> onto your day.</p>
+          <p>Setup was triggered automatically after you handed over your number yesterday. (Bold move, honestly respectable.)</p>
+          <p>It is recommended you close all other apps before continuing — or don't, this one runs fine in the background too.</p>
+          <p>Click <strong>Next</strong> to begin, or <strong>Cancel</strong> if you'd like to pretend this never happened. (Cancel button sold separately.)</p>
+        </div>
+      </div>
+
+      <!-- STEP 2: SYSTEM REQUIREMENTS -->
+      <div class="step" data-step="2">
+        <h1 class="step-title">System Requirements</h1>
+        <p class="step-sub">Checking your system for compatibility...</p>
+        <div class="rule"></div>
+        <ul class="reqs">
+          <li><span class="check">✔</span> Sense of humor — detected, above average</li>
+          <li><span class="check">✔</span> Tolerance for bad puns — surprisingly high</li>
+          <li><span class="check">✔</span> RAM (Romantic Attention span, Minimum) — sufficient</li>
+          <li><span class="check">✔</span> Butterflies.dll — currently installing, please hold</li>
+          <li><span class="check">✔</span> Willingness to reply to texts — pending, but optimistic</li>
+        </ul>
+      </div>
+
+      <!-- STEP 3: LICENSE AGREEMENT -->
+      <div class="step" data-step="3">
+        <h1 class="step-title">License Agreement</h1>
+        <p class="step-sub">Please read the following very serious legal document.</p>
+        <div class="eula-box">
+          <p><strong>POWELL END USER AGREEMENT v1.0</strong></p>
+          <p>1. User agrees to receive an unspecified number of terrible jokes over the lifetime of this installation.</p>
+          <p>2. Software is provided "as is," meaning mildly chaotic but generally well-intentioned.</p>
+          <p>3. No refunds. Uninstalling requires simply not texting back, but where's the fun in that.</p>
+          <p>4. User agrees to at least one (1) genuine laugh before this agreement is considered binding.</p>
+          <p>5. This software runs entirely on good vibes and does not collect data, except your opinion on the best pizza topping.</p>
+          <p>6. Installation may cause mild symptoms including but not limited to: smiling at your phone, rereading messages twice, and telling your friends "okay so there's this guy."</p>
+          <p>7. This agreement was drafted by someone who has been thinking about yesterday's conversation more than he'll admit in a legal document.</p>
+        </div>
+        <div class="agree-row">
+          <input type="checkbox" id="agree-check">
+          <label for="agree-check">I have read zero of this and agree anyway</label>
+        </div>
+      </div>
+
+      <!-- STEP 4: INSTALL LOCATION -->
+      <div class="step" data-step="4">
+        <h1 class="step-title">Choose Install Location</h1>
+        <p class="step-sub">Select where Powell.exe should be installed:</p>
+        <div class="rule"></div>
+        <select class="fake-select" id="install-location">
+          <option>C:\Irene\Contacts\Favorites</option>
+          <option>C:\Irene\Notifications\TurnedOn</option>
+          <option>C:\Irene\Weekend\SavedSlot</option>
+          <option>C:\Irene\ThinkingAboutIt (recommended)</option>
+        </select>
+        <p style="margin-top:16px; font-size:17px; color:#444;">Estimated install time: less time than it takes to overthink a text reply.</p>
+      </div>
+
+      <!-- STEP 5: COMPATIBILITY SCAN -->
+      <div class="step" data-step="5">
+        <h1 class="step-title">Compatibility Scan</h1>
+        <p class="step-sub">Running diagnostics before install...</p>
+        <div class="rule"></div>
+        <div id="scan-container">
+          <div class="scan-item">
+            <div class="scan-label"><span>Humor Match</span><span class="scan-pct" id="pct-1">0%</span></div>
+            <div class="scan-bar-outer"><div class="scan-bar-inner" id="bar-1"></div></div>
+          </div>
+          <div class="scan-item">
+            <div class="scan-label"><span>Vibe Match</span><span class="scan-pct" id="pct-2">0%</span></div>
+            <div class="scan-bar-outer"><div class="scan-bar-inner" id="bar-2"></div></div>
+          </div>
+          <div class="scan-item">
+            <div class="scan-label"><span>Cuteness Overload Risk</span><span class="scan-pct" id="pct-3">0%</span></div>
+            <div class="scan-bar-outer"><div class="scan-bar-inner" id="bar-3"></div></div>
+          </div>
+          <div class="scan-item">
+            <div class="scan-label"><span>Chance He's Still Thinking About Yesterday</span><span class="scan-pct" id="pct-4">0%</span></div>
+            <div class="scan-bar-outer"><div class="scan-bar-inner" id="bar-4"></div></div>
+          </div>
+        </div>
+        <div class="scan-verdict" id="scan-verdict">Scanning complete. Overall match: <strong>97%</strong> (2% held back for nerves, 1% is a rounding error).</div>
+      </div>
+
+      <!-- STEP 6: INSTALLING -->
+      <div class="step" data-step="6">
+        <h1 class="step-title">Installing...</h1>
+        <div class="rule"></div>
+        <div class="progress-wrap">
+          <div class="progress-status" id="progress-status">Preparing installation...</div>
+          <div class="progress-bar-outer">
+            <div class="progress-bar-inner" id="progress-bar"></div>
+          </div>
+          <div class="progress-pct" id="progress-pct">0%</div>
+        </div>
+      </div>
+
+      <!-- STEP 7: FINISH -->
+      <div class="step" data-step="7">
+        <div class="finish-wrap">
+          <div class="finish-icon">🎉</div>
+          <div class="finish-title">INSTALLATION COMPLETE</div>
+          <div class="finish-msg">Powell.exe has been successfully installed on Irene's day.</div>
+          <div class="finish-msg">A restart is recommended. Restart is defined as: texting him back.</div>
+          <div class="finish-sign">— Powell (genuinely glad you gave me your number)</div>
+          <div style="margin-top:22px;">
+            <button class="wbtn big" id="finish-btn">Open Powell.exe</button>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="wbtn" id="compliment-btn">Click for a random compliment</button>
+            <div class="scan-verdict show" id="compliment-display" style="margin-top:10px; display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="btn-row" id="btn-row">
+      <button class="wbtn" id="back-btn" disabled>&lt; Back</button>
+      <button class="wbtn primary" id="next-btn">Next &gt;</button>
+      <button class="wbtn" id="cancel-btn">Cancel</button>
+    </div>
+  </div>
+
+  <footer class="credit">made with mild chaos by Powell, for Irene</footer>
+
+</div>
+
+<div id="taskbar">
+  <button id="start-btn">⊞ Start</button>
+  <div id="taskbar-app">💾 Powell.exe — Setup Wizard</div>
+  <div id="taskbar-clock">--:--</div>
+</div>
+
+<div id="error-modal">
+  <div class="error-box">
+    <div class="error-titlebar">SYSTEM MESSAGE</div>
+    <div class="error-body">
+      <span class="glyph">⚠️</span>
+      <div id="error-text">Error.</div>
+    </div>
+    <div class="error-actions">
+      <button class="wbtn primary" id="error-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<audio id="bg-music" src="Rock.mp3" loop preload="auto"></audio>
+
+<script>
+  /* ================= BACKGROUND MUSIC ================= */
+  const bgMusic = document.getElementById('bg-music');
+  const musicToggle = document.getElementById('music-toggle');
+  let musicStarted = false;
+  let musicEnabled = true;
+
+  function fadeMusicIn(){
+    let vol = 0;
+    bgMusic.volume = 0;
+    const fade = setInterval(() => {
+      vol += 0.03;
+      if(vol >= 0.6){ vol = 0.6; clearInterval(fade); }
+      bgMusic.volume = vol;
+    }, 100);
+  }
+
+  function startMusic(){
+    if(musicStarted || !musicEnabled) return;
+    musicStarted = true;
+    const playPromise = bgMusic.play();
+    if(playPromise !== undefined){
+      playPromise.then(() => {
+        fadeMusicIn();
+      }).catch(() => {
+        // autoplay blocked, will retry on next interaction
+        musicStarted = false;
+      });
+    }
+  }
+
+  // Browsers block audio-with-sound from autoplaying until the user interacts.
+  // Catch the first click/tap/key anywhere on the page.
+  ['click', 'keydown', 'touchstart'].forEach(function(evt){
+    document.addEventListener(evt, startMusic, { once: false });
+  });
+
+  musicToggle.addEventListener('click', function(e){
+    e.stopPropagation();
+    musicEnabled = !musicEnabled;
+    if(musicEnabled){
+      musicToggle.textContent = '🔊 Music';
+      startMusic();
+      if(musicStarted) bgMusic.play();
+    } else {
+      musicToggle.textContent = '🔇 Music';
+      bgMusic.pause();
+    }
+  });
+
+  /* ================= BOOT SCREEN ================= */
+  const bootLines = [
+    "POWELL SYSTEMS (c) — BIOS v2.4",
+    "Running memory test... OK",
+    "Detecting installed hardware... found: 1x sense of humor",
+    "Loading CHARM.SYS... OK",
+    "Loading HUMOR.SYS... OK",
+    "Scanning for IRENE.EXE... found",
+    "Establishing connection... yesterday's number accepted",
+    "Boot sequence complete.",
+    "Starting Powell.exe Setup Wizard..."
+  ];
+  const bootTextEl = document.getElementById('boot-text');
+  const bootScreen = document.getElementById('boot-screen');
+  let bootLineIndex = 0;
+
+  function typeBootLine(){
+    if(bootLineIndex >= bootLines.length){
+      setTimeout(() => {
+        bootScreen.classList.add('hide');
+        setTimeout(() => { bootScreen.style.display = 'none'; }, 550);
+      }, 400);
+      return;
+    }
+    const line = bootLines[bootLineIndex];
+    let charIndex = 0;
+    const typer = setInterval(() => {
+      bootTextEl.textContent += line.charAt(charIndex);
+      charIndex++;
+      if(charIndex >= line.length){
+        clearInterval(typer);
+        bootTextEl.textContent += '\n';
+        bootLineIndex++;
+        setTimeout(typeBootLine, 120);
+      }
+    }, 14);
+  }
+  typeBootLine();
+
+  /* ================= CLOCK ================= */
+  function updateClock(){
+    const now = new Date();
+    let h = now.getHours();
+    const m = now.getMinutes().toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; if(h === 0) h = 12;
+    document.getElementById('taskbar-clock').textContent = h + ':' + m + ' ' + ampm;
+  }
+  updateClock();
+  setInterval(updateClock, 1000 * 15);
+
+  /* ================= ERROR MODAL ================= */
+  const errorModal = document.getElementById('error-modal');
+  const errorText = document.getElementById('error-text');
+  function showError(text){
+    errorText.textContent = text;
+    errorModal.classList.add('show');
+  }
+  document.getElementById('error-ok').addEventListener('click', () => {
+    errorModal.classList.remove('show');
+  });
+
+  document.getElementById('start-btn').addEventListener('click', () => {
+    showError("Start Menu unavailable. There is only one program that matters right now.");
+  });
+
+  /* ================= DESKTOP ICON JOKES ================= */
+  const iconMessages = {
+    computer: "This PC contains: 1 installation of Powell.exe, and just enough storage for your number.",
+    bin: "Recycle Bin is empty. Powell already threw out all his bad pickup lines. Allegedly.",
+    excuses: "0 excuses found in this folder. He actually showed up.",
+    save: "Save function disabled. It's a little too late for that now."
+  };
+  function bindIcon(id, key){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('click', () => showError(iconMessages[key]));
+    el.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); showError(iconMessages[key]); }
+    });
+  }
+  bindIcon('icon-computer', 'computer');
+  bindIcon('icon-bin', 'bin');
+  bindIcon('icon-excuses', 'excuses');
+  bindIcon('icon-save', 'save');
+  bindIcon('icon-computer-m', 'computer');
+  bindIcon('icon-bin-m', 'bin');
+  bindIcon('icon-excuses-m', 'excuses');
+  bindIcon('icon-save-m', 'save');
+
+  /* ================= DRAGGABLE WINDOW ================= */
+  const win = document.getElementById('the-window');
+  const titlebar = document.getElementById('titlebar');
+  let dragging = false;
+  let dragOffsetX = 0, dragOffsetY = 0;
+
+  titlebar.addEventListener('pointerdown', (e) => {
+    const rect = win.getBoundingClientRect();
+    win.style.position = 'fixed';
+    win.style.left = rect.left + 'px';
+    win.style.top = rect.top + 'px';
+    win.style.margin = '0';
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    dragging = true;
+    win.classList.add('dragging');
+    titlebar.setPointerCapture(e.pointerId);
+  });
+
+  titlebar.addEventListener('pointermove', (e) => {
+    if(!dragging) return;
+    const maxX = window.innerWidth - win.offsetWidth;
+    const maxY = window.innerHeight - 40;
+    let newX = e.clientX - dragOffsetX;
+    let newY = e.clientY - dragOffsetY;
+    newX = Math.max(0, Math.min(newX, maxX));
+    newY = Math.max(0, Math.min(newY, maxY));
+    win.style.left = newX + 'px';
+    win.style.top = newY + 'px';
+  });
+
+  function endDrag(e){
+    if(!dragging) return;
+    dragging = false;
+    win.classList.remove('dragging');
+  }
+  titlebar.addEventListener('pointerup', endDrag);
+  titlebar.addEventListener('pointercancel', endDrag);
+
+  /* ================= MIN / MAX / CLOSE ================= */
+  document.getElementById('min-btn').addEventListener('click', () => {
+    win.classList.add('minimized');
+    setTimeout(() => {
+      win.classList.remove('minimized');
+      showError("This window can't actually be minimized. It's kind of the whole point.");
+    }, 1000);
+  });
+
+  document.getElementById('max-btn').addEventListener('click', () => {
+    win.classList.add('maxi-pulse');
+    setTimeout(() => win.classList.remove('maxi-pulse'), 350);
+    showError("Cannot maximize. Already running at full charm capacity.");
+  });
+
+  document.getElementById('close-btn').addEventListener('click', () => {
+    showError("Nice try. This installer cannot be closed — it's basically already in your phone.");
+  });
+
+  /* ================= WIZARD LOGIC ================= */
+  let current = 1;
+  const totalSteps = 7;
+  const backBtn = document.getElementById('back-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const cancelBtn = document.getElementById('cancel-btn');
+  const btnRow = document.getElementById('btn-row');
+  const agreeCheck = document.getElementById('agree-check');
+
+  function showStep(n){
+    document.querySelectorAll('.step').forEach(s => {
+      s.classList.toggle('active', Number(s.dataset.step) === n);
+    });
+    backBtn.disabled = (n === 1) || (n === 6);
+    nextBtn.style.display = (n === 6 || n === 7) ? 'none' : 'inline-block';
+    cancelBtn.style.display = (n === 7) ? 'none' : 'inline-block';
+
+    if(n === 3){
+      nextBtn.disabled = !agreeCheck.checked;
+    } else {
+      nextBtn.disabled = false;
+    }
+
+    if(n === 5){
+      runScan();
+    }
+
+    if(n === 6){
+      btnRow.style.display = 'none';
+      runInstall();
+    } else {
+      btnRow.style.display = 'flex';
+    }
+  }
+
+  function runScan(){
+    const verdict = document.getElementById('scan-verdict');
+    verdict.classList.remove('show');
+    const targets = [96, 91, 88, 94];
+    targets.forEach((val, i) => {
+      const bar = document.getElementById('bar-' + (i + 1));
+      const pct = document.getElementById('pct-' + (i + 1));
+      bar.style.width = '0%';
+      pct.textContent = '0%';
+      setTimeout(() => {
+        bar.style.width = val + '%';
+        let count = 0;
+        const step = setInterval(() => {
+          count += 4;
+          if(count >= val){ count = val; clearInterval(step); }
+          pct.textContent = count + '%';
+        }, 40);
+      }, i * 250);
+    });
+    setTimeout(() => { verdict.classList.add('show'); }, targets.length * 250 + 700);
+  }
+
+  agreeCheck.addEventListener('change', () => {
+    if(current === 3) nextBtn.disabled = !agreeCheck.checked;
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if(current === 3 && !agreeCheck.checked) return;
+    if(current < totalSteps){
+      current++;
+      showStep(current);
+    }
+  });
+
+  backBtn.addEventListener('click', () => {
+    if(current > 1){
+      current--;
+      showStep(current);
+    }
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    showError("Nice try. This installer cannot be cancelled — it's basically already in your phone.");
+  });
+
+  const statusMessages = [
+    "Downloading charm.dll...",
+    "Calibrating jokes to acceptable levels...",
+    "Removing awkwardness.exe...",
+    "Indexing conversation starters...",
+    "Syncing playlists...",
+    "Compressing nervousness (94% done)...",
+    "Finalizing installation..."
+  ];
+
+  function runInstall(){
+    const bar = document.getElementById('progress-bar');
+    const pct = document.getElementById('progress-pct');
+    const status = document.getElementById('progress-status');
+    let progress = 0;
+    bar.style.width = '0%';
+    pct.textContent = '0%';
+    let msgIndex = 0;
+    status.textContent = statusMessages[0];
+
+    const interval = setInterval(() => {
+      progress += Math.floor(Math.random() * 12) + 6;
+      if(progress >= 100){
+        progress = 100;
+        clearInterval(interval);
+        setTimeout(() => {
+          current = 7;
+          showStep(current);
+          launchConfetti();
+        }, 500);
+      }
+      bar.style.width = progress + '%';
+      pct.textContent = progress + '%';
+      const newMsgIndex = Math.min(statusMessages.length - 1, Math.floor(progress / 15));
+      if(newMsgIndex !== msgIndex){
+        msgIndex = newMsgIndex;
+        status.textContent = statusMessages[msgIndex];
+      }
+    }, 380);
+  }
+
+  document.getElementById('finish-btn').addEventListener('click', () => {
+    showError("Powell.exe is now running. Side effects may include smiling at your phone for no reason.");
+  });
+
+  const compliments = [
+    "Statistically, you are way out of Powell's league. He knows. He's fine with it.",
+    "You might be the prettiest person Powell's talked to all year. He's not big on math, but he's confident about this one.",
+    "Giving your number to a near-stranger and still coming across this cool is a rare skill.",
+    "Let's get ma— nope. Abort. Abort. Too soon. Pretend you didn't see that.",
+    "Whatever you're doing today, it's working."
+  ];
+  const complimentBtn = document.getElementById('compliment-btn');
+  const complimentDisplay = document.getElementById('compliment-display');
+  complimentBtn.addEventListener('click', () => {
+    const pick = compliments[Math.floor(Math.random() * compliments.length)];
+    complimentDisplay.textContent = pick;
+    complimentDisplay.style.display = 'block';
+  });
+
+  function launchConfetti(){
+    const colors = ['#ffe14d', '#ff6fa5', '#018281', '#1084d0', '#ffffff'];
+    for(let i = 0; i < 90; i++){
+      const el = document.createElement('div');
+      el.className = 'confetti';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.animationDuration = (2.5 + Math.random() * 2) + 's';
+      el.style.animationDelay = (Math.random() * 0.6) + 's';
+      el.style.width = (6 + Math.random() * 6) + 'px';
+      el.style.height = (10 + Math.random() * 8) + 'px';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }
+  }
+
+  showStep(current);
+</script>
+
+</body>
+</html>
