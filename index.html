@@ -38,25 +38,64 @@
   #pre-intro{
     position: fixed; inset: 0;
     z-index: 4000;
-    background: linear-gradient(135deg, #ffd6e8, #ffe9f2, #ffc2d9);
+    background: linear-gradient(135deg, #ffb6d5, #ffe0ee, #ff9ecb, #ffd1e6);
+    background-size: 300% 300%;
+    animation: pinkShift 8s ease infinite;
     display:flex;
     align-items:center;
     justify-content:center;
     font-family: 'Trebuchet MS', 'VT323', sans-serif;
     padding: 20px;
+    overflow: hidden;
+  }
+  @keyframes pinkShift{
+    0%{ background-position: 0% 50%; }
+    50%{ background-position: 100% 50%; }
+    100%{ background-position: 0% 50%; }
+  }
+  .heart{
+    position: absolute;
+    bottom: -10%;
+    font-size: 22px;
+    opacity: 0.65;
+    animation: floatUp linear infinite;
+    pointer-events: none;
+  }
+  @keyframes floatUp{
+    to{ transform: translateY(-120vh) rotate(20deg); opacity: 0; }
   }
   #pre-intro.hide{
     animation: boot-fade .5s ease forwards;
   }
   .intro-card{
     background: #fff;
-    border-radius: 24px;
-    padding: 40px 30px;
+    border-radius: 26px;
+    padding: 36px 28px;
     width: 100%;
     max-width: 380px;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    box-shadow: 0 20px 50px rgba(255,77,136,0.35), 0 0 0 4px #ffd6e8;
     position: relative;
+    z-index: 5;
+    animation: cardPop .5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes cardPop{
+    from{ transform: scale(.85); opacity:0; }
+    to{ transform: scale(1); opacity:1; }
+  }
+  .intro-img{
+    width: 130px;
+    height: 130px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #ff9ecb;
+    box-shadow: 0 8px 20px rgba(255,77,136,0.4);
+    margin-bottom: 14px;
+    animation: wiggle 2.5s ease-in-out infinite;
+  }
+  @keyframes wiggle{
+    0%,100%{ transform: rotate(-4deg); }
+    50%{ transform: rotate(4deg); }
   }
   .intro-card h1{
     font-size: 1.4rem;
@@ -593,8 +632,10 @@
 <body>
 
 <div id="pre-intro">
+  <div class="hearts-layer" id="heartsLayer"></div>
   <div class="intro-card">
     <div class="intro-step active" data-intro="1">
+      <img src="images.jpg" alt="me reacting to your texts" class="intro-img">
       <h1>hi pretty lady,cutie patootie,,hehe👋</h1>
       <div class="intro-question">i think i like you<br>and i think you like me too</div>
       <button class="intro-btn" id="introContinueBtn">continue</button>
@@ -1180,6 +1221,21 @@
       setTimeout(() => el.remove(), 5000);
     }
   }
+
+  (function spawnHearts(){
+    const layer = document.getElementById('heartsLayer');
+    const glyphs = ['💗','💕','💖','✨'];
+    for(let i = 0; i < 18; i++){
+      const h = document.createElement('div');
+      h.className = 'heart';
+      h.textContent = glyphs[Math.floor(Math.random() * glyphs.length)];
+      h.style.left = Math.random() * 100 + '%';
+      h.style.animationDuration = (4 + Math.random() * 5) + 's';
+      h.style.animationDelay = (Math.random() * 5) + 's';
+      h.style.fontSize = (16 + Math.random() * 14) + 'px';
+      layer.appendChild(h);
+    }
+  })();
 
   showStep(current);
 </script>
