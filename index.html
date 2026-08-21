@@ -129,10 +129,11 @@
   #introNoBtn{
     background: #eee;
     color: #666;
-    position: absolute;
+    position: fixed;
     left: 55%;
     top: 0;
-    transition: left .15s ease, top .15s ease;
+    transition: left .1s ease, top .1s ease;
+    z-index: 4500;
   }
 
   /* ===== BOOT SCREEN ===== */
@@ -868,11 +869,8 @@
     }
   }
 
-  // Browsers block audio-with-sound from autoplaying until the user interacts.
-  // Catch the first click/tap/key anywhere on the page.
-  ['click', 'keydown', 'touchstart'].forEach(function(evt){
-    document.addEventListener(evt, startMusic, { once: false });
-  });
+  // NOTE: music is intentionally NOT unlocked on the first tap/click anywhere.
+  // It starts only when she hits "yes" — see introYesBtn handler below.
 
   musicToggle.addEventListener('click', function(e){
     e.stopPropagation();
@@ -893,22 +891,70 @@
   const introYesBtn = document.getElementById('introYesBtn');
   const introNoBtn = document.getElementById('introNoBtn');
 
+  let noBtnActive = false;
+  const NO_BTN_DODGE_RADIUS = 120; // px — cursor doesn't even need to touch it, just get close
+
+  function placeNoBtnInitial(){
+    // start it roughly where it visually was, next to "yes" — but in fixed/viewport coords
+    // so it's free to roam the entire screen from here on out.
+    const yesRect = introYesBtn.getBoundingClientRect();
+    const btnW = introNoBtn.offsetWidth || 90;
+    const startX = Math.min(yesRect.right + 24, window.innerWidth - btnW - 10);
+    introNoBtn.style.left = startX + 'px';
+    introNoBtn.style.top = yesRect.top + 'px';
+    noBtnActive = true;
+  }
+
+  function dodgeIntroNo(){
+    const btnW = introNoBtn.offsetWidth || 90;
+    const btnH = introNoBtn.offsetHeight || 44;
+    const maxX = Math.max(10, window.innerWidth - btnW - 10);
+    const maxY = Math.max(10, window.innerHeight - btnH - 10);
+    const newX = 10 + Math.random() * maxX;
+    const newY = 10 + Math.random() * maxY;
+    introNoBtn.style.left = newX + 'px';
+    introNoBtn.style.top = newY + 'px';
+  }
+
+  // Fast + intuitive dodge: it flees the moment a pointer gets near it,
+  // anywhere on the page — no need to actually land a click or hover on it.
+  function maybeFleeFromPoint(x, y){
+    if(!noBtnActive) return;
+    const rect = introNoBtn.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dist = Math.hypot(x - cx, y - cy);
+    if(dist < NO_BTN_DODGE_RADIUS){
+      dodgeIntroNo();
+    }
+  }
+
+  document.addEventListener('pointermove', (e) => {
+    maybeFleeFromPoint(e.clientX, e.clientY);
+  });
+  document.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    if(t) maybeFleeFromPoint(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    if(t) maybeFleeFromPoint(t.clientX, t.clientY);
+  }, { passive: true });
+
+  // Fallback dodges directly on the button too, in case someone's fast enough to hit it.
+  introNoBtn.addEventListener('mouseover', dodgeIntroNo);
+  introNoBtn.addEventListener('click', dodgeIntroNo);
+  introNoBtn.addEventListener('touchstart', function(e){ e.preventDefault(); dodgeIntroNo(); }, { passive: false });
+
   introContinueBtn.addEventListener('click', () => {
     document.querySelector('.intro-step[data-intro="1"]').classList.remove('active');
     document.querySelector('.intro-step[data-intro="2"]').classList.add('active');
+    placeNoBtnInitial();
   });
 
-  function dodgeIntroNo(){
-    const newLeft = Math.random() * 70;
-    const newTop = (Math.random() - 0.5) * 40;
-    introNoBtn.style.left = newLeft + '%';
-    introNoBtn.style.top = newTop + 'px';
-  }
-  introNoBtn.addEventListener('mouseover', dodgeIntroNo);
-  introNoBtn.addEventListener('click', dodgeIntroNo);
-  introNoBtn.addEventListener('touchstart', function(e){ e.preventDefault(); dodgeIntroNo(); });
-
   introYesBtn.addEventListener('click', () => {
+    noBtnActive = false;
+    startMusic(); // the song starts right here, the moment she says yes — not before
     preIntro.classList.add('hide');
     setTimeout(() => {
       preIntro.style.display = 'none';
